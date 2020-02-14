@@ -6,7 +6,6 @@ var nickname;
 // Posts - create ; insert -> insert_ok
 router.post('/create', async function(req, res){
   try{
-    
     nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
     const post_value = new Post();
     post_value.title=req.body.title;
@@ -23,9 +22,10 @@ router.post('/create', async function(req, res){
   }
 });
 // Posts - read ; 원하는 정보만 표시~ findOne 메소드
-router.post('/read', async function(req,res){
+router.get('/mypost', async function(req,res){
   try{
-    Post.findOne({objectid:req.body.id},function(err, Post){
+    nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
+    Post.findOne({writer:nickname.nickname},function(err, Post){
       res.send(Post);
     });
   } catch(err){
