@@ -1,16 +1,25 @@
 var express = require('express');
 var router = express.Router();
-var Post = require('../models/post'); // 1
-
+var Post = require('../models/post'); // 
+var nJwt = require('njwt');
+var nickname;
 // Posts - create ; insert -> insert_ok
 router.post('/create', async function(req, res){
   try{
-    await Post.create(req.body, function(err, Post){
+    
+    nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
+    const post_value = new Post();
+    post_value.title=req.body.title;
+    post_value.writer=nickname.body.nickname;
+    post_value.contents=req.body.content;
+    await post_value.save(function(err, post_value){
+      if(err) return console.log(err);
       console.log("Create Success");
-      res.redirect('/');
+      res.status(200).send("post create");
     });
   } catch (err){
     console.log(err);
+    res.status(500).send(err);
   }
 });
 // Posts - read ; 원하는 정보만 표시~ findOne 메소드
