@@ -25,11 +25,13 @@ router.post('/create', async function(req, res){
 router.get('/mypost', async function(req,res){
   try{
     nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
-    Post.findOne({writer:nickname.nickname},function(err, Post){
-      res.send(Post);
+    Post.find({writer:nickname.body.nickname},function(err, Post){
+      console.log(JSON.stringify(Post));
+      res.status(200).send(JSON.stringify(Post));
     });
   } catch(err){
     console.log(err);
+    res.status(500).send(err);
   }
 });
 // Posts - edit // 4
