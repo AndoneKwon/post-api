@@ -6,11 +6,12 @@ var nickname;
 // Posts - create ; insert -> insert_ok
 router.post('/create', async function(req, res){
   try{
-    nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
+    token_values=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
     const post_value = new Post();
     post_value.title=req.body.title;
-    post_value.writer=nickname.body.nickname;
+    post_value.writer=tokenValues.body.nickname;
     post_value.contents=req.body.content;
+    post_value.uid=tokenValues.body.uid;
     await post_value.save(function(err, post_value){
       if(err) return console.log(err);
       console.log("Create Success");
@@ -25,7 +26,7 @@ router.post('/create', async function(req, res){
 router.get('/mypost', async function(req,res){
   try{
     nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
-    Post.find({writer:nickname.body.nickname},function(err, Post){
+    Post.find({writer:nickname.body.uid},function(err, Post){
       console.log(JSON.stringify(Post));
       res.status(200).send(JSON.stringify(Post));
     });
