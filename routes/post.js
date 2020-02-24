@@ -1,9 +1,10 @@
 var express = require('express');
 var router = express.Router();
-var Post = require('../schema/post'); // 
+var Post = require('../schema/post'); //
 var nJwt = require('njwt');
 var {Follow} = require('../models');
 var {User}=require('../models');
+var {Likes}=require('../models');
 var tokenValues;
 var dotenv = require('dotenv').config();
 
@@ -54,7 +55,6 @@ router.post('/getUserPost', async function(req,res){
   try{
     var data={};
     let nickname=req.body.nickname;
-    console.log(process.env.JWT_SECRET);
     tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
     myId=tokenValues.body.id;//요청한사람 id 파싱
     var isFollowed;
@@ -71,14 +71,16 @@ router.post('/getUserPost', async function(req,res){
       userId=result[0].id;
     });
 
-    console.log(myId);
-
-    Follow.findAll({
-      where:{followerId:myId,followingId:userId}
+    await Follow.findAll({
+      where:{
+        followerId:myId,
+        followingId:userId
+      },
+      paranoid:true
     })
     .then(result=>{
       findResult=result;
-      console.log(findResult);
+      console.log("result"+findResult);
     })
 
     if(isEmpty(findResult)){
@@ -92,10 +94,10 @@ router.post('/getUserPost', async function(req,res){
 
     await Post.find({writer:nickname},function(err, Post){
       //console.log(Post);
-      post=Post;
+      posts=Post;
     });
     //console.log(post);
-    data.Post=post;
+    data.Post=posts;
     console.log(data);
     res.json(data);
   
@@ -104,6 +106,107 @@ router.post('/getUserPost', async function(req,res){
     res.status(500).send(err);
   }
 });
+
+
+router.post('/Clicklike',async function(req,res){
+  var token_values=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+  var objectId=req.body.objectId;
+  var findResult;
+  var alreadyLike;
+
+  console.log("dddddddddd:"+objectId);
+
+  await Likes.findAll({
+    where:{
+      object_Id:objectId,
+      liker:token_values.body.id
+    }
+  })
+  .then(result=>{
+    findResult=result;
+  });
+
+  console.log(isEmpty(findResult));
+
+  if(isEmpty(findResult)){
+    Post.findOneAndUpdate({
+      _id:objectId
+    },{
+      $inc:{
+        likes_num:1
+      }
+    },async function(err,result){
+      try{
+        console.log("increse success");
+      } 
+      catch{
+        console.log(err);
+        res.json({
+          code:500,
+          message:'like error'
+        });
+      }
+    })
+
+    Likes.create({
+      object_Id:objectId,
+      liker:token_values.body.id
+    })
+    .then(result=>{
+      res.json({
+        code:200,
+        message : "like success"
+      })
+    })
+    .catch(err=>{
+      console.log(err);
+      res.json({
+        code:500,
+        message:"오류가 발생하였습니다."
+      })
+    });
+
+  }else{
+    Post.findOneAndUpdate({
+      _id:objectId
+    },{
+      $inc:{
+        likes_num:-1
+      }
+    },async function(err,result){
+      try{
+        console.log("decrease sueccess");
+      } 
+      catch{
+        console.log(err);
+        res.json({
+          code:500,
+          message:'오류가 발생하였습니다.'
+        });
+      }
+    }
+    );
+
+    await Likes.destroy({where:{
+      object_Id:objectId,
+      liker:token_values.body.id
+    }})
+    .then(result=>{
+      res.json({
+        code:200,
+        message:'unlikes success'
+      })
+    })
+    .catch(err=>{
+      console.log(err);
+      res.json({
+        code:500,
+        message:"오류가 발생하였습니다."
+      })
+    });
+  }
+
+})
 // Posts - edit // 4
 /*
 router.get('/:id/edit', function(req, res){

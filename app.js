@@ -3,6 +3,8 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 const mongoose = require('mongoose');
+var {sequelize} = require('./models');
+
 
 var postRouter = require('./routes/post')
 
@@ -10,6 +12,7 @@ var app = express();
 app.set('view engine', 'ejs');
 
 
+sequelize.sync();
 var db = mongoose.connection;
 db.on('error', console.error);
 db.once('open',function(){
