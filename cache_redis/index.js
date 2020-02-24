@@ -1,8 +1,10 @@
 const redis = require('redis');
+var dotenv = require('dotenv').config();
+
 var client = redis.createClient({
     port :6379, 
-    host:"117.17.196.142",
-    password:"escseoultech123",
+    host:process.env.REDIS_ADDRESS,
+    password:process.env.REDIS_PASSWORD,
     db:0
 });
 

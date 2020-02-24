@@ -1,18 +1,30 @@
 var express = require('express');
 var router = express.Router();
-var Post = require('../models/post'); // 
+var Post = require('../schema/post'); // 
 var nJwt = require('njwt');
-var nickname;
+var {Follow} = require('../models');
+var {User}=require('../models');
+var tokenValues;
+var dotenv = require('dotenv').config();
+
+var isEmpty = function(value){ 
+  if( value == "" || value == null || value == undefined || ( value != null && typeof value == "object" && !Object.keys(value).length ) ){ 
+    return true 
+  }else{ 
+    return false 
+  } 
+};
+
 // Posts - create ; insert -> insert_ok
 router.post('/create', async function(req, res){
   try{
-    token_values=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
-    const post_value = new Post();
-    post_value.title=req.body.title;
-    post_value.writer=tokenValues.body.nickname;
-    post_value.contents=req.body.content;
-    post_value.uid=tokenValues.body.uid;
-    await post_value.save(function(err, post_value){
+    tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+    const postValue = new Post();
+    postValue.title=req.body.title;
+    postValue.writer=tokenValues.body.nickname;
+    postValue.contents=req.body.content;
+    postValue.uid=tokenValues.body.uid;
+    await postValue.save(function(err, postvalue){
       if(err) return console.log(err);
       console.log("Create Success");
       res.status(200).send("post create");
@@ -23,13 +35,70 @@ router.post('/create', async function(req, res){
   }
 });
 // Posts - read ; 원하는 정보만 표시~ findOne 메소드
-router.get('/mypost', async function(req,res){
+router.get('/getMyPost', async function(req,res){
   try{
-    nickname=nJwt.verify(req.headers.authorization,'nodebird', 'HS256');
-    Post.find({writer:nickname.body.uid},function(err, Post){
+    let nickname=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+    Post.find({writer:nickname.body.nickname},function(err, Post){
+      console.log(Post);
       console.log(JSON.stringify(Post));
       res.status(200).send(JSON.stringify(Post));
     });
+  } catch(err){
+    console.log(err);
+    res.status(500).send(err);
+  }
+});
+
+router.post('/getUserPost', async function(req,res){
+  var userId;//찾고자 하는 userId
+  try{
+    var data={};
+    let nickname=req.body.nickname;
+    console.log(process.env.JWT_SECRET);
+    tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+    myId=tokenValues.body.id;//요청한사람 id 파싱
+    var isFollowed;
+    var findResult;
+    var posts;
+
+    await User.findAll({
+      where:{nickname:nickname},
+      attributes:['id']
+    })
+    .then(result=>{
+      //console.log(result.nickname);
+      //console.log(result);
+      userId=result[0].id;
+    });
+
+    console.log(myId);
+
+    Follow.findAll({
+      where:{followerId:myId,followingId:userId}
+    })
+    .then(result=>{
+      findResult=result;
+      console.log(findResult);
+    })
+
+    if(isEmpty(findResult)){
+      isFollowed=0;
+    }else{
+      isFollowed=1;
+    }
+
+    data.isFollowed=isFollowed;
+    console.log(data);
+
+    await Post.find({writer:nickname},function(err, Post){
+      //console.log(Post);
+      post=Post;
+    });
+    //console.log(post);
+    data.Post=post;
+    console.log(data);
+    res.json(data);
+  
   } catch(err){
     console.log(err);
     res.status(500).send(err);
