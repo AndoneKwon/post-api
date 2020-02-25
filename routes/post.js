@@ -54,12 +54,14 @@ router.post('/getUserPost', async function(req,res){
   var userId;//찾고자 하는 userId
   try{
     var data={};
-    let nickname=req.body.nickname;
+    let nickname=req.body.nickname;//보고싶은 유저의 nickname
     tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
     myId=tokenValues.body.id;//요청한사람 id 파싱
-    var isFollowed;
+    var isFollowed;//유저팔로우 여부
     var findResult;
-    var posts;
+    var posts={};
+    var isLikeList={};//게시물 좋아요 여부
+    var aJson = new Object();
 
     await User.findAll({
       where:{nickname:nickname},
@@ -80,7 +82,6 @@ router.post('/getUserPost', async function(req,res){
     })
     .then(result=>{
       findResult=result;
-      console.log("result"+findResult);
     })
 
     if(isEmpty(findResult)){
@@ -90,20 +91,42 @@ router.post('/getUserPost', async function(req,res){
     }
 
     data.isFollowed=isFollowed;
-    console.log(data);
 
     await Post.find({writer:nickname},function(err, Post){
-      //console.log(Post);
       posts=Post;
     });
-    //console.log(post);
+
+
+    for(var i=0;i<Object.keys(posts).length;i++){
+      objectId=posts[i]._id;
+      await Likes.findOne({
+        where:{
+          liker:myId,
+          object_Id:objectId.toString()
+        },
+      })
+      .then(result=>{
+        //console.log(result[0].object_Id);
+        if(isEmpty(result)){
+          isLike=0;
+        }else{
+          isLike=1;
+        }
+        isLikeList[objectId]=isLike;
+      });
+    };
+    
     data.Post=posts;
+    data.isLiked=isLikeList;
     console.log(data);
     res.json(data);
   
   } catch(err){
     console.log(err);
-    res.status(500).send(err);
+    res.json({
+      code:500,
+      message:'에러가 발생하였습니다.'
+    });
   }
 });
 
@@ -113,8 +136,6 @@ router.post('/Clicklike',async function(req,res){
   var objectId=req.body.objectId;
   var findResult;
   var alreadyLike;
-
-  console.log("dddddddddd:"+objectId);
 
   await Likes.findAll({
     where:{
