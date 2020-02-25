@@ -5,6 +5,7 @@ var nJwt = require('njwt');
 var {Follow} = require('../models');
 var {User}=require('../models');
 var {Likes}=require('../models');
+var {Reply}=require('../models');
 var tokenValues;
 var dotenv = require('dotenv').config();
 
@@ -146,15 +147,105 @@ router.post('/Clicklike',async function(req,res){
   .then(result=>{
     findResult=result;
   });
-
-  console.log(isEmpty(findResult));
+//이전에 Like를 눌렀는지 체크
 
   if(isEmpty(findResult)){
+
+    await Likes.create({
+      object_Id:objectId,
+      liker:token_values.body.id
+    })
+    .then(result=>{
+      Post.findOneAndUpdate({
+        _id:objectId
+      },{
+        $inc:{
+          likes_num:1
+        }
+      },async function(err,result){
+        try{
+          console.log("increse success");
+        } 
+        catch{
+          console.log(err);
+          res.json({
+            code:500,
+            message:'like error'
+          });
+        }
+      })
+
+      res.json({
+        code:200,
+        message : "like"
+      })
+    })
+    .catch(err=>{
+      console.log(err);
+      res.json({
+        code:500,
+        message:"오류가 발생하였습니다."
+      })
+    });
+
+  }else{
+    await Likes.destroy({where:{
+      object_Id:objectId,
+      liker:token_values.body.id
+    }})
+    .then(result=>{
+      Post.findOneAndUpdate({
+        _id:objectId
+      },{
+        $inc:{
+          likes_num:-1
+        }
+      },async function(err,result){
+        try{
+          console.log("decrease sueccess");
+        } 
+        catch{
+          console.log(err);
+          res.json({
+            code:500,
+            message:'오류가 발생하였습니다.'
+          });
+        }
+      });
+
+      res.json({
+        code:200,
+        message:'unlike'
+      })
+    })
+    .catch(err=>{
+      console.log(err);
+      res.json({
+        code:500,
+        message:"오류가 발생하였습니다."
+      })
+    });
+  }
+});
+
+router.post('/createReply',function(req,res){
+  var token_values=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+  var {objectId}=req.body;
+  var {replyContents}=req.body;
+  var nickname=token_values.body.nickname;
+
+  Reply.create({
+    writer:nickname,
+    replyContents:replyContents,
+    objectId:objectId,
+  })
+  .then(result=>{
+
     Post.findOneAndUpdate({
       _id:objectId
     },{
       $inc:{
-        likes_num:1
+        reply_num:1
       }
     },async function(err,result){
       try{
@@ -169,65 +260,59 @@ router.post('/Clicklike',async function(req,res){
       }
     })
 
-    Likes.create({
-      object_Id:objectId,
-      liker:token_values.body.id
+    res.json({
+      code:200,
+      message:'create'
     })
-    .then(result=>{
-      res.json({
-        code:200,
-        message : "like success"
-      })
+  })
+  .catch(err=>{
+    console.log(err);
+    res.json({
+      code:500,
+      message:'에러가 발생하였습니다.'
     })
-    .catch(err=>{
-      console.log(err);
-      res.json({
-        code:500,
-        message:"오류가 발생하였습니다."
-      })
-    });
+  });
+});
 
-  }else{
-    Post.findOneAndUpdate({
-      _id:objectId
-    },{
-      $inc:{
-        likes_num:-1
-      }
-    },async function(err,result){
-      try{
-        console.log("decrease sueccess");
-      } 
-      catch{
-        console.log(err);
-        res.json({
-          code:500,
-          message:'오류가 발생하였습니다.'
-        });
-      }
+router.post('/getReply',async function(req,res){
+  var {objectId}=req.body;
+  /*
+  await Reply.findAll({
+    where:{
+      objectId:objectId,
     }
-    );
-
-    await Likes.destroy({where:{
-      object_Id:objectId,
-      liker:token_values.body.id
-    }})
-    .then(result=>{
-      res.json({
-        code:200,
-        message:'unlikes success'
-      })
+  })
+  .then(result=>{
+    console.log(result);
+    res.json(result);
+  })
+  .catch(err=>{
+    console.log(err);
+    res.json({
+      code:500,
+      message:'에러가 발생하였습니다.'
     })
-    .catch(err=>{
-      console.log(err);
-      res.json({
-        code:500,
-        message:"오류가 발생하였습니다."
-      })
-    });
-  }
-
-})
+  })
+  */
+ await Reply.findAll({
+ where:{
+   objectId:objectId,
+  },
+  attributes:['writer','replyContents']
+ })
+ .then(result=>{
+    console.log(result);
+    res.json(result);
+  })
+  .catch(err=>{
+    console.log(err);
+    res.json({
+      code:500,
+      message:'에러가 발생하였습니다.'
+    })
+  })
+});
+    
 // Posts - edit // 4
 /*
 router.get('/:id/edit', function(req, res){
