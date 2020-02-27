@@ -11,7 +11,6 @@ var postRouter = require('./routes/post')
 var app = express();
 app.set('view engine', 'ejs');
 
-
 sequelize.sync();
 var db = mongoose.connection;
 db.on('error', console.error);
