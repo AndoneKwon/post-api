@@ -31,6 +31,9 @@ router.post('/create', async function(req, res){
       postValue.contents=req.body.content;
       postValue.uid=tokenValues.body.uid;
       postValue.id=id;
+      postValue.lati=req.body.lati;
+      postValue.long=req.body.long;
+      console.log(req.body);
       await postValue.save(function(err, postvalue){
         if(err) return console.log(err);
         console.log("Create Success");
