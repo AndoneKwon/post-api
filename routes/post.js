@@ -10,6 +10,7 @@ var tokenValues;
 var dotenv = require('dotenv').config();
 const client = require('../cache_redis');
 const axios = require('axios');
+var {promisify} = require('util');
 const getRedis = promisify(client.get).bind(client);
 
 
@@ -58,9 +59,9 @@ router.post('/create', async function(req, res){
           if(err) return console.log(err);
           await Follow.findAll({
             where:{
-              followingId:tokenValues.id
+              followingId:tokenValues.body.id
             },
-            attributes:['followerId'];
+            attributes:['followerId']
           })
           .then(result=>{
             console.log(typeof result);
