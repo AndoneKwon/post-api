@@ -15,7 +15,7 @@ function getCurrentDate(){
 }
 
 const postSchema = new mongoose.Schema({
-    id:{type: Number, unique:true, index:true},
+    id:{type: Number, required:true, unique:true, index:true},
     title:{type: String, required:true},
     writer:{type: String, required:true},
     contents:{type: String, required:true},
