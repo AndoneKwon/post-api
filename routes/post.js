@@ -9,7 +9,21 @@ var {Reply}=require('../models');
 var tokenValues;
 var dotenv = require('dotenv').config();
 const client = require('../cache_redis');
+const axios = require('axios');
 
+function getCurrentDate(){
+  var date = new Date();
+  var year = date.getFullYear();
+  var month = date.getMonth();
+  var today = date.getDate();
+  var time = date.getTime();
+  collection_name=year.toString()+month.toString()+today.toString()+time.toString();
+  return collection_name;
+};//오늘 날짜 체크
+
+function Unix_timeStampConv(){
+  return Math.floor(new Date().getTime()/1000);
+}
 
 var isEmpty = function(value){ 
   if( value == "" || value == null || value == undefined || ( value != null && typeof value == "object" && !Object.keys(value).length ) ){ 
@@ -23,32 +37,32 @@ var isEmpty = function(value){
 router.post('/create', async function(req, res){
   try{
     client.get("lastPostIndex",async function(err,result){
-      var id=Number(result)+1;
-      tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
-      const postValue = new Post();
-      postValue.title=req.body.title;
-      postValue.writer=tokenValues.body.nickname;
-      postValue.contents=req.body.content;
-      postValue.uid=tokenValues.body.uid;
-      postValue.id=id;
-      postValue.lati=req.body.lati;
-      postValue.long=req.body.long;
-      console.log(req.body);
-      await postValue.save(function(err, postvalue){
-        if(err) return console.log(err);
-        console.log("Create Success");
+      try{
+        var id=Number(result)+1;
         client.set("lastPostIndex",id);
-        res.status(200).send("post create");
-      })
-      .catch(err=>{
-        console.log(err);
-        res.json({
-          code:500,
-          message:"오류 발생함."
+        var createValue=Number(getCurrentDate());
+        tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+        const postValue = new Post();
+        postValue.title=req.body.title;
+        postValue.writer=tokenValues.body.nickname;
+        postValue.contents=req.body.content;
+        postValue.uid=tokenValues.body.id;
+        postValue.id=id;
+        postValue.lati=req.body.lati;
+        postValue.long=req.body.long;
+        postValue.userId=tokenValues.body.id;
+        postValue.unixTime=Unix_timeStampConv();
+        await postValue.save(function(err, postvalue){
+          if(err) return console.log(err);
+          res.status(200).send("post create");
         });
-      });
+      }
+      catch(err){
+        console.log(err);
+      }
     });
   } catch (err){
+    console.log("err임");
     console.log(err);
     res.status(500).send(err);
   }
@@ -90,10 +104,10 @@ router.get('/getMyPost', async function(req,res){
         }
         isLikeList[objectId]=isLike;
       });
-    };
+    }
 
     /* data에 모든 정보를 집어넣고 json으로 front서버에 전송 */
-    console.log(data);
+    
     data.Post=posts;
     data.isLiked=isLikeList;
     res.json(data);
@@ -124,7 +138,6 @@ router.post('/getUserPost', async function(req,res){
     })
     .then(result=>{
       //console.log(result.nickname);
-      //console.log(result);
       userId=result[0].id;
     });
 
@@ -173,7 +186,7 @@ router.post('/getUserPost', async function(req,res){
     
     data.Post=posts;
     data.isLiked=isLikeList;
-    console.log(data);
+    //console.log(data.isLiked);
     res.json(data);
   
   } catch(err){
@@ -191,7 +204,13 @@ router.post('/Clicklike',async function(req,res){
   var objectId=req.body.objectId;
   var findResult;
   var alreadyLike;
-
+  var myId=token_values.body.id;
+  var userId=req.body.userId;
+  var notiBody={
+    'send_user':token_values.body.nickname,
+    'rec_user':userId,
+    'post_id':objectId
+  };
   await Likes.findAll({
     where:{
       object_Id:objectId,
@@ -204,30 +223,35 @@ router.post('/Clicklike',async function(req,res){
 //이전에 Like를 눌렀는지 체크
 
   if(isEmpty(findResult)){
-
     await Likes.create({
       object_Id:objectId,
       liker:token_values.body.id
     })
-    .then(result=>{
-      Post.findOneAndUpdate({
+    .then(async result=>{
+      await Post.findOneAndUpdate({
         _id:objectId
-      },{
-        $inc:{
-          likes_num:1
-        }
-      },async function(err,result){
-        try{
-          console.log("increse success");
-        } 
-        catch{
-          console.log(err);
-          res.json({
-            code:500,
-            message:'like error'
-          });
-        }
+      },
+      {
+        $inc:{likes_num:1}
+      },
+      )
+      .then(async function(){
+        console.log("increse success");
+        await Follow.findOne({where:{
+          followerId:myId,followingId:userId
+        }})
+        .then(async result=>{
+          if(result!=null){
+            await Follow.increment('like_num',
+            {
+              where:{
+                id:result.id
+              }
+            });
+          }
+        });
       })
+      axios.post("http://localhost:3006/noti/like",notiBody);
 
       res.json({
         code:200,
@@ -247,33 +271,41 @@ router.post('/Clicklike',async function(req,res){
       object_Id:objectId,
       liker:token_values.body.id
     }})
-    .then(result=>{
-      Post.findOneAndUpdate({
+    .then(async result=>{
+      await Post.findOneAndUpdate({
         _id:objectId
       },{
         $inc:{
           likes_num:-1
         }
-      },async function(err,result){
-        try{
-          console.log("decrease sueccess");
-        } 
-        catch{
-          console.log(err);
-          res.json({
-            code:500,
-            message:'오류가 발생하였습니다.'
-          });
-        }
+      })
+      .then(async function(){
+        console.log("decrese success");
+        await Follow.findOne({
+          where:{
+            followerId:myId,followingId:userId
+          }
+        })
+        .then(async result=>{
+          if(result!=null){
+            await Follow.decrement('like_num',
+            {
+              where:{
+                id:result.id
+              }
+            });
+          }
+        })
       });
-
+      notiBody.status='like';
+      axios.post("http://localhost:3006/noti/unlike",notiBody);
       res.json({
         code:200,
         message:'unlike'
       })
     })
     .catch(err=>{
-      console.log(err);
+      console.log(err); 
       res.json({
         code:500,
         message:"오류가 발생하였습니다."
@@ -287,33 +319,44 @@ router.post('/createReply',function(req,res){
   var {objectId}=req.body;
   var {replyContents}=req.body;
   var nickname=token_values.body.nickname;
-
+  var myId=token_values.body.id;
+  var userId=req.body.userId;
+  var notiBody={
+    'send_user':myId,
+    'rec_user':userId,
+    'post_id':objectId
+  };
+  //console.log(userId);
   Reply.create({
     writer:nickname,
     replyContents:replyContents,
     objectId:objectId,
   })
-  .then(result=>{
-
-    Post.findOneAndUpdate({
+  .then(async result=>{
+    await Post.findOneAndUpdate({
       _id:objectId
     },{
       $inc:{
         reply_num:1
       }
-    },async function(err,result){
-      try{
-        console.log("increse success");
-      } 
-      catch{
-        console.log(err);
-        res.json({
-          code:500,
-          message:'like error'
-        });
-      }
     })
-
+    .then(async function(){
+      await Follow.findOne({
+        where:{
+          followerId:myId,followingId:userId
+        }
+      })
+      .then(async result=>{
+        if(result!=null){
+          await Follow.increment('comment_num',
+          {
+            where:{id:result.id}
+          });
+        }
+      })
+    });
+    notiBody.replyContents=replyContents;
+    axios.post("http://localhost:3006/noti/reply",notiBody);
     res.json({
       code:200,
       message:'create'
@@ -330,24 +373,6 @@ router.post('/createReply',function(req,res){
 
 router.post('/getReply',async function(req,res){
   var {objectId}=req.body;
-  /*
-  await Reply.findAll({
-    where:{
-      objectId:objectId,
-    }
-  })
-  .then(result=>{
-    console.log(result);
-    res.json(result);
-  })
-  .catch(err=>{
-    console.log(err);
-    res.json({
-      code:500,
-      message:'에러가 발생하였습니다.'
-    })
-  })
-  */
  await Reply.findAll({
  where:{
    objectId:objectId,
@@ -355,7 +380,7 @@ router.post('/getReply',async function(req,res){
   attributes:['writer','replyContents']
  })
  .then(result=>{
-    console.log(result);
+    //console.log(result);
     res.json(result);
   })
   .catch(err=>{

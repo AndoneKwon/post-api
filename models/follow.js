@@ -4,13 +4,11 @@ module.exports = (sequelize, DataTypes)=>(
             type : DataTypes.STRING(30),
             allowNull : false,
             defaultValue : 0,
-            primaryKey: true
         },
         followingId :{
             type : DataTypes.STRING(30),
             allowNull : false,
             defaultValue : 0,
-            primaryKey: true
         },
         like_num : {
             type : DataTypes.INTEGER,
@@ -35,7 +33,6 @@ module.exports = (sequelize, DataTypes)=>(
     
         {
             paranoid : true,
-            primaryKey : true,
         }
 
     
