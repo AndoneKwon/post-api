@@ -32,11 +32,4 @@ const postSchema = new mongoose.Schema({
     timestamp:true
 });
 
-postSchema.plugin(autoIncrement.plugin,{
-    model:'Post',
-    field:'id',
-    startAt:9971,
-    increment:1
-})
-
 module.exports = mongoose.model('Post', postSchema);

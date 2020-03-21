@@ -10,6 +10,8 @@ var tokenValues;
 var dotenv = require('dotenv').config();
 const client = require('../cache_redis');
 const axios = require('axios');
+const getRedis = promisify(client.get).bind(client);
+
 
 function getCurrentDate(){
   var date = new Date();
@@ -52,8 +54,19 @@ router.post('/create', async function(req, res){
         postValue.long=req.body.long;
         postValue.userId=tokenValues.body.id;
         postValue.unixTime=Unix_timeStampConv();
-        await postValue.save(function(err, postvalue){
+        await postValue.save(async function(err, postvalue){
           if(err) return console.log(err);
+          await Follow.findAll({
+            where:{
+              followingId:tokenValues.id
+            },
+            attributes:['followerId'];
+          })
+          .then(result=>{
+            console.log(typeof result);
+            //for(let i=0;i<Object.keys(result).length)
+            //await getRedis
+          })
           res.status(200).send("post create");
         });
       }
