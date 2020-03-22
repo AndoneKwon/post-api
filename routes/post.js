@@ -12,7 +12,7 @@ const client = require('../cache_redis');
 const axios = require('axios');
 var {promisify} = require('util');
 const getRedis = promisify(client.get).bind(client);
-
+const multer = require('multer');
 
 function getCurrentDate(){
   var date = new Date();
@@ -36,6 +36,18 @@ var isEmpty = function(value){
   } 
 };
 
+const storage = multer.diskStorage({
+  destination: "public/statics/",
+  filename: function(req, file, cb) {
+     cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits:{ fileSize: 10000000 },
+}).single("file");
+
 // Posts - create ; insert -> insert_ok
 router.post('/create', async function(req, res){
   try{
@@ -45,30 +57,60 @@ router.post('/create', async function(req, res){
         client.set("lastPostIndex",id);
         var createValue=Number(getCurrentDate());
         tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
+
         const postValue = new Post();
-        postValue.title=req.body.title;
-        postValue.writer=tokenValues.body.nickname;
-        postValue.contents=req.body.content;
-        postValue.uid=tokenValues.body.id;
-        postValue.id=id;
-        postValue.lati=req.body.lati;
-        postValue.long=req.body.long;
-        postValue.userId=tokenValues.body.id;
-        postValue.unixTime=Unix_timeStampConv();
-        await postValue.save(async function(err, postvalue){
-          if(err) return console.log(err);
-          await Follow.findAll({
-            where:{
-              followingId:tokenValues.body.id
-            },
-            attributes:['followerId']
-          })
-          .then(result=>{
-            console.log(typeof result);
-            //for(let i=0;i<Object.keys(result).length)
-            //await getRedis
-          })
-          res.status(200).send("post create");
+
+        upload(req, res, async (err) => {
+          if (req.file) {
+            postValue.title=req.body.title;
+            postValue.writer=tokenValues.body.nickname;
+            postValue.contents=req.body.content;
+            postValue.uid=tokenValues.body.id;
+            postValue.id=id;
+            postValue.lati=req.body.lati;
+            postValue.long=req.body.long;
+            postValue.userId=tokenValues.body.id;
+            postValue.unixTime=Unix_timeStampConv();
+            postValue.file = req.file;
+            
+            await postValue.save(async function(err, postvalue){
+              if(err) return console.log(err);
+              await Follow.findAll({
+                where:{
+                  followingId:tokenValues.body.id
+                },
+                attributes:['followerId']
+              })
+              .then(result=>{
+                console.log(typeof result);
+              })
+              res.status(200).send("post create");
+            });
+          } else {
+            postValue.title=req.body.title;
+            postValue.writer=tokenValues.body.nickname;
+            postValue.contents=req.body.content;
+            postValue.uid=tokenValues.body.id;
+            postValue.id=id;
+            postValue.lati=req.body.lati;
+            postValue.long=req.body.long;
+            postValue.userId=tokenValues.body.id;
+            postValue.unixTime=Unix_timeStampConv();
+            
+            await postValue.save(async function(err, postvalue){
+              if(err) return console.log(err);
+              await Follow.findAll({
+                where:{
+                  followingId:tokenValues.body.id
+                },
+                attributes:['followerId']
+              })
+              .then(result=>{
+                console.log(typeof result);
+              })
+              res.status(200).send("post create");
+            });
+          }
         });
       }
       catch(err){
