@@ -62,6 +62,10 @@ router.post('/create', async function(req, res){
         const postValue = new Post();
 
         upload(req, res, async (err) => {
+          if (err) {
+            return console.log(err);
+          }
+
           if (req.file) {
             postValue.title=req.body.title;
             postValue.writer=tokenValues.body.nickname;
@@ -87,6 +91,8 @@ router.post('/create', async function(req, res){
                 return console.log(typeof result);
               })
             });
+
+            return res.status(200).send("post create");
           } else {
             postValue.title=req.body.title;
             postValue.writer=tokenValues.body.nickname;
@@ -110,10 +116,10 @@ router.post('/create', async function(req, res){
                 return console.log(typeof result);
               })
             });
+
+            return res.status(200).send("post create");
           }
         });
-
-        return res.status(200).send("post create");
       }
       catch(err){
         console.log(err);
