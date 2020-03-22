@@ -72,7 +72,7 @@ router.post('/create', async function(req, res){
             postValue.long=req.body.long;
             postValue.userId=tokenValues.body.id;
             postValue.unixTime=Unix_timeStampConv();
-            postValue.file = req.file;
+            postValue.file = req.file.filename;
             
             await postValue.save(async function(err, postvalue){
               if(err) return console.log(err);

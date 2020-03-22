@@ -17,6 +17,7 @@
     "mongoose": "^5.8.11",
     "mongoose-auto-increment": "^5.0.1",
     "morgan": "~1.9.1",
+    "multer": "^1.4.2",
     "mysql2": "^2.1.0",
     "njwt": "^1.0.0",
     "nodemon": "^2.0.2",
