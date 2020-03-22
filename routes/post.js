@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var Post = require('../schema/post'); //
 var nJwt = require('njwt');
+var path = require('path');
 var {Follow} = require('../models');
 var {User}=require('../models');
 var {Likes}=require('../models');
@@ -75,6 +76,7 @@ router.post('/create', async function(req, res){
             
             await postValue.save(async function(err, postvalue){
               if(err) return console.log(err);
+
               await Follow.findAll({
                 where:{
                   followingId:tokenValues.body.id
@@ -82,9 +84,8 @@ router.post('/create', async function(req, res){
                 attributes:['followerId']
               })
               .then(result=>{
-                console.log(typeof result);
+                return console.log(typeof result);
               })
-              res.status(200).send("post create");
             });
           } else {
             postValue.title=req.body.title;
@@ -106,12 +107,13 @@ router.post('/create', async function(req, res){
                 attributes:['followerId']
               })
               .then(result=>{
-                console.log(typeof result);
+                return console.log(typeof result);
               })
-              res.status(200).send("post create");
             });
           }
         });
+
+        return res.status(200).send("post create");
       }
       catch(err){
         console.log(err);
