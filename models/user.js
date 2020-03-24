@@ -55,6 +55,12 @@ module.exports = (sequelize, DataTypes)=>(
             defaultValue : 1, 
         },
 
+        noticeCount:{
+            type : DataTypes.INTEGER,
+            allowNull : false,
+            defaultValue : 0
+        },
+
         accessedAt : {
             type : DataTypes.DATE,
             allowNull : false,
