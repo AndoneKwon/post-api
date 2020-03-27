@@ -141,6 +141,13 @@ router.post('/create', async function(req, res){
                 return console.log(typeof result);
               })
             });
+            
+            
+            
+            //Save MyPost for json to redis server
+            var myPosts = Post.findAll({where : {userId : id}});
+            var parse_posts = JSON.parse(myPosts);
+            client.set("_posts_"+id, parse_posts, 60*60*3);
 
             return res.status(200).send("post create");
           } else {
@@ -166,7 +173,13 @@ router.post('/create', async function(req, res){
                 return console.log(typeof result);
               })
             });
-
+            
+            
+            //Save MyPost for json to redis server
+            var myPosts = Post.findAll({where : {userId : id}});
+            var parse_posts = JSON.parse(myPosts);
+            client.set("_posts_"+id, parse_posts, 60*60*3);
+            
             return res.status(200).send("post create");
           }
         });
