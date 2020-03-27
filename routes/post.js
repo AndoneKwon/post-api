@@ -10,12 +10,15 @@ var {Reply}=require('../models');
 var tokenValues;
 var dotenv = require('dotenv').config();
 const client = require('../cache_redis');
+const cache_Feed = require('../cache_Feed');
 const tempPost = require('../cache_redis3');//myPost와 userpost불러올 때 임시캐시서버
 const axios = require('axios');
 var {promisify} = require('util');
 const getRedis = promisify(client.get).bind(client);
 const getTempRedis = promisify(tempPost.get).bind(tempPost);
 const setTempRedis = promisify(tempPost.set).bind(tempPost);
+const setFeedCache = promisify(cache_Feed.set).bind(cache_Feed);
+const getFeedCache = promisify(cache_Feed.get).bind(cache_Feed);
 const multer = require('multer');
 
 var checkOver = function (newYear,newMonth,newToday){
@@ -94,6 +97,34 @@ const storage = multer.diskStorage({
   }
 });
 
+var pushCache = async function(myId,postvalue){
+  var maxCache=100;
+  let followKey='_follow_'+myId;
+  let followerList=await getTempRedis(followKey);
+  let arr=[];
+  console.log(JSON.parse(followerList));
+  for(let i=0;i<Object.keys(JSON.parse(followerList)).length;i++){
+    console.log(arr);
+    let feedKey = '_feed_'+JSON.parse(followerList)[i].followerId;
+    console.log(feedKey);
+    let lastFeedData=await getFeedCache(feedKey);
+    let sendCache=JSON.parse(lastFeedData)
+    console.log(lastFeedData);
+    if(lastFeedData==null){
+      arr.push(postvalue)
+      await setFeedCache(feedKey,JSON.stringify(arr));
+    }else if(Object.keys(sendCache).length<maxCache){
+      sendCache.unshift(postvalue);
+      await setFeedCache(feedKey,JSON.stringify(sendCache));
+    }else{
+      sendCache.pop();//100개 이상이 캐시에 들어가면 삭제
+      sendCache.unshift(postvalue);
+      await setFeedCache(feedKey,JSON.stringify(sendCache));
+    }
+    arr=[];
+  }
+}//각 id캐시에 집어넣는 함수
+
 const upload = multer({
   storage: storage,
   limits:{ fileSize: 10000000 },
@@ -108,8 +139,9 @@ router.post('/create', async function(req, res){
         client.set("lastPostIndex",id);
         var createValue=Number(getCurrentDate());
         tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
-
+        var myId = tokenValues.body.id;
         const postValue = new Post();
+        var maxCache = 100;
 
         upload(req, res, async (err) => {
           if (err) {
@@ -130,16 +162,7 @@ router.post('/create', async function(req, res){
             
             await postValue.save(async function(err, postvalue){
               if(err) return console.log(err);
-
-              await Follow.findAll({
-                where:{
-                  followingId:tokenValues.body.id
-                },
-                attributes:['followerId']
-              })
-              .then(result=>{
-                return console.log(typeof result);
-              })
+              pushCache(myId,postvalue);
             });
             
             
@@ -163,22 +186,9 @@ router.post('/create', async function(req, res){
             
             await postValue.save(async function(err, postvalue){
               if(err) return console.log(err);
-              await Follow.findAll({
-                where:{
-                  followingId:tokenValues.body.id
-                },
-                attributes:['followerId']
-              })
-              .then(result=>{
-                return console.log(typeof result);
-              })
+              pushCache(myId,postvalue);
             });
             
-            
-            //Save MyPost for json to redis server
-            var myPosts = Post.findAll({where : {userId : id}});
-            var parse_posts = JSON.parse(myPosts);
-            client.set("_posts_"+id, parse_posts, 60*60*3);
             
             return res.status(200).send("post create");
           }
