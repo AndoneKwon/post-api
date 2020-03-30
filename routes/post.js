@@ -42,6 +42,7 @@ var isEmpty = function (value) {
 };
 
 var checkLike = async function(myId,posts){
+  /*
   let isLikeList=[];
   let LikeObject={};
   let objectId;
@@ -66,6 +67,33 @@ var checkLike = async function(myId,posts){
   }
   //console.log(LikeObject);
   return LikeObject;
+  */
+  let objectIdList=[];
+  let likeObject={};
+
+  const postLen = posts.length;
+
+  for (let i = 0; i < postLen; i++) {
+    objectIdList.push(posts[i]._id.toString());
+    likeObject[posts[i]._id.toString()] = 0;
+  }
+
+  await Likes.findAll({
+    where:{
+      liker: myId,
+      object_Id: objectIdList
+    },
+    attributes:['object_Id']
+  })
+  .then(result=>{
+    const resultLen = result.length;
+
+    for (let i = 0; i < resultLen; i++) {
+      likeObject[result[i].object_Id] = 1;
+    }
+  })
+
+  return likeObject;
 }
 
 function getCurrentDate(){
@@ -111,16 +139,20 @@ var pushCache = async function(myId,postvalue){
     //console.log(feedKey);
     let lastFeedData=await getFeedCache(feedKey);
     let sendCache=JSON.parse(lastFeedData)
-    //console.log(lastFeedData);
+    //console.log(sendCache);
     if(lastFeedData==null){
       arr.push(postvalue)
       await setFeedCache(feedKey,JSON.stringify(arr));
+    }else if(isEmpty(sendCache._id)==false){
+      arr.push(sendCache);
+      arr.push(postvalue);
+      await setFeedCache(feedKey,JSON.stringify(arr));      
     }else if(Object.keys(sendCache).length<maxCache){
-      sendCache.unshift(postvalue);
+      sendCache.push(postvalue);
       await setFeedCache(feedKey,JSON.stringify(sendCache));
     }else{
       sendCache.pop();//100개 이상이 캐시에 들어가면 삭제
-      sendCache.unshift(postvalue);
+      sendCache.push(postvalue);
       await setFeedCache(feedKey,JSON.stringify(sendCache));
     }
     arr=[];
@@ -278,7 +310,7 @@ router.post('/getMyPost', async function(req,res){
           });
           
           let isLikeList=await checkLike(myId,Posts);
-            //console.log(isLikeList);
+          console.log(isLikeList);
           data.Post = Posts;
           data.isLiked=isLikeList;
           data.Year = 2020;
@@ -316,9 +348,11 @@ router.post('/getMyPost', async function(req,res){
           for(let i=0;i<Object.keys(Posts).length;i++){
             objectIdList.push(Posts[i]._id);
           }
+          
           console.log(objectIdList);
           console.log("처음 찾은 게시물 : "+Object.keys(Posts).length);
           console.log(newYear,newMonth,newToday);
+          
           var isLikeList=await checkLike(myId,Posts);
           data.Post = Posts;//Post List
           data.isLiked=isLikeList;
@@ -511,7 +545,7 @@ router.post('/getMyPost', async function(req,res){
                 lastdata.Post.push(Posts[i]);
                 lastdata.isLiked[getPostId]=isLikeList[getPostId];
               }
-            } 
+            }
             lastdata.Year=newYear;
             lastdata.Month=newMonth;
             lastdata.Date=newToday;
