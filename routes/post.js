@@ -101,15 +101,17 @@ var pushCache = async function(myId,postvalue){
   var maxCache=100;
   let followKey='_follow_'+myId;
   let followerList=await getTempRedis(followKey);
+  //console.log(followerList);
+  if(followerList==null) return 0;
   let arr=[];
-  console.log(JSON.parse(followerList));
+  //console.log(JSON.parse(followerList));
   for(let i=0;i<Object.keys(JSON.parse(followerList)).length;i++){
     console.log(arr);
     let feedKey = '_feed_'+JSON.parse(followerList)[i].followerId;
-    console.log(feedKey);
+    //console.log(feedKey);
     let lastFeedData=await getFeedCache(feedKey);
     let sendCache=JSON.parse(lastFeedData)
-    console.log(lastFeedData);
+    //console.log(lastFeedData);
     if(lastFeedData==null){
       arr.push(postvalue)
       await setFeedCache(feedKey,JSON.stringify(arr));
@@ -156,10 +158,9 @@ router.post('/create', async function(req, res){
             postValue.id=id;
             postValue.lati=req.body.lati;
             postValue.long=req.body.long;
-            postValue.userId=tokenValues.body.id;
+            postValue.usemrId=tokenValues.body.id;
             postValue.unixTime=Unix_timeStampConv();
             postValue.file = req.file.filename;
-            
             await postValue.save(async function(err, postvalue){
               if(err) return console.log(err);
               pushCache(myId,postvalue);
@@ -168,9 +169,9 @@ router.post('/create', async function(req, res){
             
             
             //Save MyPost for json to redis server
-            var myPosts = Post.findAll({where : {userId : id}});
-            var parse_posts = JSON.parse(myPosts);
-            client.set("_posts_"+id, parse_posts, 60*60*3);
+            //var myPosts = Post.findAll({where : {userId : id}});
+            //var parse_posts = JSON.parse(myPosts);
+            //client.set("_posts_"+id, parse_posts, 60*60*3);
 
             return res.status(200).send("post create");
           } else {
@@ -220,6 +221,7 @@ router.post('/getMyPost', async function(req,res){
   var checkDate;
   var onePageValue=10;
   var finddate = 6;
+  var objectIdList=[];
   console.log("first test:"+req.body.date);
   console.log(req.body.year,req.body.month,req.body.date);
   var myPostKey='myPost'+myId;//redis에 저장된 나의 key
@@ -269,9 +271,12 @@ router.post('/getMyPost', async function(req,res){
             userId: myId,
             id: { '$gt': 0 }
           })
+          .sort('-id')
           .then(async result => {
+            //console.log(result);
             Posts=result;
           });
+          
           let isLikeList=await checkLike(myId,Posts);
             //console.log(isLikeList);
           data.Post = Posts;
@@ -297,15 +302,21 @@ router.post('/getMyPost', async function(req,res){
           .then(result => {
             console.log("first find Index");
             todayId = result.id;
-            console.log(todayDate,todayId);
+            //console.log(todayDate,todayId);
           });
           await Post.find({
             userId: myId,
             id: { '$gt': currentDateId }
           })
+          .sort('-id')
           .then(async result => {
+            //console.log(result);
             Posts=result;
           });
+          for(let i=0;i<Object.keys(Posts).length;i++){
+            objectIdList.push(Posts[i]._id);
+          }
+          console.log(objectIdList);
           console.log("처음 찾은 게시물 : "+Object.keys(Posts).length);
           console.log(newYear,newMonth,newToday);
           var isLikeList=await checkLike(myId,Posts);
@@ -352,6 +363,7 @@ router.post('/getMyPost', async function(req,res){
             userId: myId,
             'id': { '$gt':0, '$lt':lastDateId}
           })
+          .sort('-id')
           .then(async result => {
             //console.log(result)
             Posts=result;
@@ -392,6 +404,7 @@ router.post('/getMyPost', async function(req,res){
             userId: myId,
             id: { '$gt': currentDateId, '$lt': lastDateId }
           })
+          .sort('-id')
           .then(async result4 => {
             Posts=result4;
           });
@@ -443,6 +456,7 @@ router.post('/getMyPost', async function(req,res){
             userId: myId,
             id: { '$gt': 0, '$lt': lastDateId }
           })
+          .sort('-id')
           .then(result2=>{
             Posts=result2;
           }
@@ -482,6 +496,7 @@ router.post('/getMyPost', async function(req,res){
               userId: myId,
               id: { '$gt': currentDateId, '$lt': lastDateId }
             })
+            .sort('-id')
             .then(result => {
               Posts=result;
             });
@@ -566,7 +581,7 @@ router.post('/getMyPost', async function(req,res){
             Post.push(lastdata.Post[i]);
             Likes[getPostId]=lastdata.isLiked[getPostId];
           }
-          //console.log(Likes);
+          //console.log(Post);
           for(let i=0;i<Object.keys(lastdata.Post).length;i++){
             let getPostId=lastdata.Post[i]._id;
             afterPost.push(lastdata.Post[i]);
@@ -590,6 +605,7 @@ router.post('/getMyPost', async function(req,res){
           updateData.Date=lastdata.Date;
           updateData.isLastMyPost=0;
           postlist=updateData;
+      
           await setTempRedis(myPostKey,JSON.stringify(updateData));
           res.json(sendData);
         });
@@ -695,6 +711,7 @@ router.post('/getUserPost', async function(req,res){
               userId: userId,
               id: { '$gt': 0 }
             })
+            .sort('-id')
             .then(async result => {
               Posts=result;
             });
@@ -724,6 +741,7 @@ router.post('/getUserPost', async function(req,res){
               userId: userId,
               id: { '$gt': currentDateId }
             })
+            .sort('-id')
             .then(async result => {
               Posts=result;
             });
@@ -774,6 +792,7 @@ router.post('/getUserPost', async function(req,res){
               userId: userId,
               'id': { '$gt':0, '$lt':lastDateId}
             })
+            .sort('-id')
             .then(async result => {
               Posts=result;
             })
@@ -814,6 +833,7 @@ router.post('/getUserPost', async function(req,res){
               userId: userId,
               id: { '$gt': currentDateId, '$lt': lastDateId }
             })
+            .sort('-id')
             .then(async result4 => {
               Posts=result4;
             });
@@ -866,6 +886,7 @@ router.post('/getUserPost', async function(req,res){
               userId: userId,
               id: { '$gt': 0, '$lt': lastDateId }
             })
+            .sort('-id')
             .then(result2=>{
               Posts=result2;
             }
@@ -906,6 +927,7 @@ router.post('/getUserPost', async function(req,res){
                 userId: userId,
                 id: { '$gt': currentDateId, '$lt': lastDateId }
               })
+              .sort('-id')
               .then(result => {
                 Posts=result;
               });
@@ -1224,6 +1246,44 @@ router.post('/getReply',async function(req,res){
   })
 });
     
+router.post('/test',async function(req,res){
+  var Posts;
+  var objectIdList=[];
+  var findLikes;
+  await Post.find({
+    userId: 35,
+    id: { '$gt': 951041 }
+  })
+  .sort('-id')
+  .then(result => {
+    Posts=result;
+  });
+  for(let i=0;i<Object.keys(Posts).length;i++){
+    objectIdList.push(Posts[i]._id.toString());
+  }
+  console.log(objectIdList);
+  await Likes.findAll({
+    where:{
+      liker:35,
+      object_Id:objectIdList
+    },
+    attributes:['object_Id']
+  })
+  .then(result=>{
+    findLikes=result;
+    console.log("arr : "+JSON.stringify(result));
+  })
+  for(let i=0;i<Object.keys(Posts).length;i++){
+    let isthat=findLikes.find((objectId)=>{
+      //console.log(objectId,Posts[i]._id.toString())
+      return objectId=Posts[i]._id.toString();
+    })
+    console.log(JSON.stringify(isthat));
+  }
+  //console.log(objectIdList);
+  res.json(Posts);
+});
+
 // Posts - edit // 4
 /*
 router.get('/:id/edit', function(req, res){
