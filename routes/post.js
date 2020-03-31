@@ -186,11 +186,10 @@ router.post('/create', async function(req, res){
             postValue.title=req.body.title;
             postValue.writer=tokenValues.body.nickname;
             postValue.contents=req.body.content;
-            postValue.uid=tokenValues.body.id;
             postValue.id=id;
             postValue.lati=req.body.lati;
             postValue.long=req.body.long;
-            postValue.usemrId=tokenValues.body.id;
+            postValue.userId=tokenValues.body.id;
             postValue.unixTime=Unix_timeStampConv();
             postValue.file = req.file.filename;
             await postValue.save(async function(err, postvalue){
@@ -210,7 +209,6 @@ router.post('/create', async function(req, res){
             postValue.title=req.body.title;
             postValue.writer=tokenValues.body.nickname;
             postValue.contents=req.body.content;
-            postValue.uid=tokenValues.body.id;
             postValue.id=id;
             postValue.lati=req.body.lati;
             postValue.long=req.body.long;
@@ -658,7 +656,7 @@ router.post('/getUserPost', async function(req,res){
     let nickname=req.body.nickname;//보고싶은 유저의 nickname
     console.log(req.body);
     tokenValues=nJwt.verify(req.headers.authorization,process.env.JWT_SECRET, 'HS256');
-    myId=tokenValues.body.id;//요청한사람 id 파싱
+    var myId=tokenValues.body.id;//요청한사람 id 파싱
     var isFollowed;//유저팔로우 여부
     var findResult;
     var posts={};
@@ -749,7 +747,7 @@ router.post('/getUserPost', async function(req,res){
             .then(async result => {
               Posts=result;
             });
-            let isLikeList=await checkLike(userId,Posts);
+            let isLikeList=await checkLike(myId,Posts);
               //console.log(isLikeList);
             data.Post = Posts;
             data.isLiked=isLikeList;
@@ -781,7 +779,7 @@ router.post('/getUserPost', async function(req,res){
             });
             console.log("처음 찾은 게시물 : "+Object.keys(Posts).length);
             console.log(newYear,newMonth,newToday);
-            var isLikeList=await checkLike(userId,Posts);
+            var isLikeList=await checkLike(myId,Posts);
             data.Post = Posts;//Post List
             data.isLiked=isLikeList;
             data.Year = newYear;
@@ -833,7 +831,7 @@ router.post('/getUserPost', async function(req,res){
             .catch(err=>{
               console.log(err);
             });
-            let isLikeList=await checkLike(userId,Posts);
+            let isLikeList=await checkLike(myId,Posts);
             //console.log(isLikeList);
             for(var i=0;i<Object.keys(Posts).length;i++){
               let getPostId=Posts[i]._id;
@@ -872,7 +870,7 @@ router.post('/getUserPost', async function(req,res){
               Posts=result4;
             });
             
-            let isLikeList=await checkLike(userId,Posts);
+            let isLikeList=await checkLike(myId,Posts);
             console.log("추가할 게시물:"+Object.keys(Posts).length);
             for(var i=0;i<Object.keys(Posts).length;i++){
               let getPostId=Posts[i]._id;
@@ -928,7 +926,7 @@ router.post('/getUserPost', async function(req,res){
     
             var beforeData = await getTempRedis(myUserPostKey);
             lastdata = JSON.parse(beforeData);
-            let isLikeList=await checkLike(userId,Posts);
+            let isLikeList=await checkLike(myId,Posts);
             for(var i=0;i<Object.keys(Posts).length;i++){
               let getPostId=Posts[i]._id;
               lastdata.Post.push(Posts[i]);
@@ -969,7 +967,7 @@ router.post('/getUserPost', async function(req,res){
               var getLastData=await getTempRedis(myUserPostKey);
                 //console.log(getLastData);
               lastdata = JSON.parse(getLastData);
-              let isLikeList=await checkLike(userId,Posts);
+              let isLikeList=await checkLike(myId,Posts);
               if(lastdata.Post!=undefined){
                 for(var i=0;i<Object.keys(Posts).length;i++){
                   let getPostId=Posts[i]._id;
